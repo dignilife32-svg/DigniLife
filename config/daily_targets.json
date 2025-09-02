@@ -1,0 +1,7 @@
+{
+    "default_bundle_minutes": 60,
+    "min_bundle_minutes": 10,
+    "max_bundle_minutes": 120,
+    "target_usd_per_hour_low": 200,
+    "target_usd_per_hour_high": 300
+}

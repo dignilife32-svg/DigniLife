@@ -1,5 +1,35 @@
-﻿.vscode/
+﻿# Python bytecode cache
 __pycache__/
-.env/
-*.log
+*.py[cod]
+
+# Virtual environments
 .venv/
+env/
+ENV/
+.venv.bak/
+
+# VS Code settings
+.vscode/
+
+# dotenv files
+.env
+.env.*
+
+# OS / misc
+.DS_Store
+Thumbs.db
+*.log
+
+# App database or test outputs (if used)
+*.sqlite3
+*.db
+*.sqlite
+.diginitestcache/
+
+# Pytest cache
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

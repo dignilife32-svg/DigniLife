@@ -1,0 +1,26 @@
+{
+    "prompt_rank": {
+        "sec": 15,
+        "usd": 1.00
+    },
+    "safety_tag": {
+        "sec": 12,
+        "usd": 0.75
+    },
+    "read_aloud": {
+        "sec": 20,
+        "usd": 1.00
+    },
+    "qr_proof": {
+        "sec": 35,
+        "usd": 1.75
+    },
+    "micro_lesson": {
+        "sec": 70,
+        "usd": 4.00
+    },
+    "geo_ping": {
+        "sec": 18,
+        "usd": 1.00
+    }
+}
