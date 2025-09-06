@@ -1,71 +1,121 @@
+# src/daily/controller.py
 from __future__ import annotations
+
+import math
 from typing import Dict, Tuple
-from uuid import uuid4
 
-from .rates import get_rates, get_targets
+from src.daily.rates import get_rates, get_targets
+from src.wallet.models import UserCapabilities
 
-# In‑memory ledgers (dev only)
-LEDGER_BALANCE: Dict[str, float] = {}                # user_id -> balance
-LEDGER_BUNDLES: Dict[str, dict] = {}                 # bundle_id -> {user_id, plan, minutes}
+# =========================
+# In-memory ledgers (dev only)
+# =========================
+LEDGER_BALANCE: Dict[str, float] = {}  # user_id -> balance (USD)
+LEDGER_BUNDLES: Dict[str, dict] = {}   # bundle_id -> {user_id, plan (secs), minutes}
 
-# Preferred order (fast switching + verification friendly)
-TASK_ORDER = ["safety_tag", "read_aloud", "qr_proof", "geo_ping", "micro_lesson"]
+# Base task order (fast switching + verification friendly)
+TASK_ORDER_BASE: list[str] = [
+    "safety_tag",
+    "read_aloud",
+    "qr_proof",
+    "geo_ping",
+    "micro_lesson",
+    "prompt_rank",
+]
 
-def _allocate_plan(minutes: int) -> Dict[str, int]:
+def _choose_task_order(caps: UserCapabilities | None) -> list[str]:
     """
-    Very simple greedy allocator that fills 'minutes' using task mix.
+    Capability-aware task priority.
+    Voice-first users → reading/voice tasks အရင်ပေးမယ်။
+    """
+    if caps and caps.prefers_voice:
+        return ["read_aloud", "prompt_rank", "safety_tag", "qr_proof", "geo_ping", "micro_lesson"]
+    return TASK_ORDER_BASE
+
+
+def allocate_plan(minutes: int, caps: UserCapabilities | None = None) -> Dict[str, int]:
+    """
+    Very simple greedy allocator that fills `minutes` using typical task mix.
     Returns a dict of {task_type: total_seconds}.
     """
-    rates = get_rates()
-    secs_target = minutes * 60
-    plan: Dict[str, int] = {k: 0 for k in TASK_ORDER}
+    rates = get_rates()                       # {"task": {"sec": int, "usd": float}, ...}
+    order = _choose_task_order(caps)
+    seconds = max(0, int(minutes) * 60)
 
+    plan: Dict[str, int] = {k: 0 for k in order}
     i = 0
-    remaining = secs_target
-    while remaining > 0 and i < len(TASK_ORDER):
-        k = TASK_ORDER[i]
-        sec = max(1, int(rates[k]["sec"]))
-        # small batches to keep UI snappy
-        batch = max(1, min(remaining // sec, 3 if k == "micro_lesson" else 8))
-        taken = batch * sec
-        plan[k] += taken
-        remaining -= taken
-        i = (i + 1) % len(TASK_ORDER)
+    remaining = seconds
 
-        # stop when we are within 10s
-        if remaining <= 10:
+    while remaining > 0 and i < len(order):
+        k = order[i]
+        task_sec = max(1, int(rates[k]["sec"]))      # minimal block per task
+        # micro_lesson ကို batch အရွယ်အစား စုတိုးပေးပါ (ကျန်စsecs များအတွက် n*task_sec)
+        batch = task_sec * (3 if k == "micro_lesson" else 1)
+
+        if batch <= remaining:
+            plan[k] += batch
+            remaining -= batch
+        else:
+            # last chunk
+            plan[k] += remaining
+            remaining = 0
+
+        # rotate
+        i = (i + 1) % len(order)
+
+        # escape — close enough
+        if remaining <= min(10, task_sec // 2):
             break
-    return {k: v for k, v in plan.items() if v > 0}
 
-def start_bundle(user_id: str, minutes: int) -> Tuple[str, dict, Dict[str, int], int]:
-    """
-    Create a bundle, store in ledger, and return:
-    (bundle_id, targets, plan, minutes)
-    """
-    targets = get_targets()
-    minutes = max(targets["min_bundle_minutes"],
-                  min(minutes or targets["default_bundle_minutes"],
-                      targets["max_bundle_minutes"]))
+    return plan
 
-    plan = _allocate_plan(minutes)
-    bundle_id = f"BN_{uuid4().hex[:8].upper()}"
-    LEDGER_BUNDLES[bundle_id] = {"user_id": user_id, "plan": plan, "minutes": minutes}
-    return bundle_id, targets, plan, minutes
 
 def _estimate_usd(plan: Dict[str, int]) -> float:
+    """
+    Plan (seconds) ကို USD ထဲပြောင်းတွက်မယ်။
+    """
     rates = get_rates()
     total = 0.0
     for k, sec in plan.items():
-        per = rates.get(k, {"usd": 0.0, "sec": 1})
-        units = max(1, int(round(sec / max(1, int(per["sec"])))))
-        total += units * float(per["usd"])
+        unit_sec = max(1, int(rates[k]["sec"]))
+        unit_usd = float(rates[k]["usd"])
+        # sec တစ်ခုချင်းကို unit တိုင်းပေါင်း (rounded)
+        units = sec / unit_sec
+        total += units * unit_usd
     return round(total, 2)
+
+
+def start_bundle(user_id: str, minutes: int, caps: UserCapabilities | None = None) -> Tuple[str, dict, int]:
+    """
+    Create a earning bundle for a user.
+    Returns: (bundle_id, targets_dict, bundle_minutes)
+    """
+    targets = get_targets()
+    # minutes guard (min/max)
+    min_m = int(targets.get("min_bundle_minutes", 10))
+    max_m = int(targets.get("max_bundle_minutes", 120))
+    bundle_minutes = max(min_m, min(int(minutes), max_m))
+
+    plan = allocate_plan(bundle_minutes, caps)
+
+    # simple bundle id (dev only)
+    import uuid
+    bundle_id = uuid.uuid4().hex[:18].upper()
+
+    LEDGER_BUNDLES[bundle_id] = {
+        "user_id": user_id,
+        "plan": plan,                 # seconds per task
+        "minutes": bundle_minutes,
+        "est_usd": _estimate_usd(plan),
+    }
+
+    return bundle_id, targets, bundle_minutes
+
 
 def submit_bundle(user_id: str, bundle_id: str, results: dict) -> Tuple[float, float]:
     """
-    Validate owner, compute pay and credit wallet.
-    results can be used later for QA; we ignore for now in dev mode.
-    Returns (paid_usd, new_balance)
+    Finalize bundle → credit wallet (in-memory).
+    Returns: (paid_usd, new_balance)
     """
     meta = LEDGER_BUNDLES.get(bundle_id)
     if not meta or meta["user_id"] != user_id:
@@ -76,6 +126,6 @@ def submit_bundle(user_id: str, bundle_id: str, results: dict) -> Tuple[float, f
     new_bal = round(prev + pay, 2)
     LEDGER_BALANCE[user_id] = new_bal
 
-    # one‑time bundle
+    # one-time bundle
     LEDGER_BUNDLES.pop(bundle_id, None)
     return pay, new_bal

@@ -1,4 +1,12 @@
 # src/main.py
-# tests/test_daily_submit.py က `from src.main import app` လို့ခေါ်တာကြောင့်
-# root/main.py က app ကို re-export လုပ်ပေးထားပါတယ်
-from main import app  # type: ignore
+from fastapi import FastAPI
+from src.router import attach_routes
+
+app = FastAPI(title="DigniLife API")
+
+# register all routes in one place
+attach_routes(app)
+
+@app.get("/health")
+def health():
+    return {"ok": True}

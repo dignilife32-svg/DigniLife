@@ -1,37 +1,23 @@
 # src/daily/models.py
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Dict, Any, Optional
+from pydantic import BaseModel
 
+class UserCapabilities(BaseModel):
+    prefers_voice: Optional[bool] = None
 
-class StartBundleReq(BaseModel):
-    minutes: int = Field(ge=1, le=240)
-
-
-class StartBundleResp(BaseModel):
+class StartResponse(BaseModel):
+    ok: bool
     bundle_id: str
-    expires_in_sec: int
-
-
-class SubmitItem(BaseModel):
-    qid: str
-    answer: str
-    correct: Optional[bool] = None
-    tokens: int = 0
-
-
-class SubmitReq(BaseModel):
-    bundle_id: str
-    items: List[SubmitItem]
-
-
-class SubmitResp(BaseModel):
-    accepted: int
-    reward_usd: float
-
-
-class SummaryResp(BaseModel):
+    targets: Dict[str, Any]
+    minutes: int
     user_id: str
-    month: str
-    total_tasks: int
-    total_reward_usd: float
-    daily_average_usd: float
+
+class SubmitRequest(BaseModel):
+    bundle_id: str
+    results: Dict[str, Any]   # test မှာ {"ok": True} လောက်ပဲ ပို့မယ်
+
+class SubmitResponse(BaseModel):
+    ok: bool
+    bundle_id: str
+    paid_usd: float
+    new_balance: float
