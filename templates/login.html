@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Admin Login{% endblock %}
+{% block content %}
+<h2>Admin Login</h2>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if info %}<div class="alert info">{{ info }}</div>{% endif %}
+<form method="post" action="/admin/ui/login" class="card">
+  <label>Admin ID
+    <input type="text" name="user_id" placeholder="ceo" required>
+  </label>
+  <label>Admin Key
+    <input type="password" name="admin_key" placeholder="••••••" required>
+  </label>
+  <button type="submit">Sign In</button>
+</form>
+{% endblock %}

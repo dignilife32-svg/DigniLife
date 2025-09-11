@@ -1,23 +1,13 @@
 # src/daily/models.py
-from typing import Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
+from datetime import datetime
 
-class UserCapabilities(BaseModel):
-    prefers_voice: Optional[bool] = None
+TaskType = Literal["daily", "classic"]
 
-class StartResponse(BaseModel):
-    ok: bool
-    bundle_id: str
-    targets: Dict[str, Any]
-    minutes: int
-    user_id: str
-
-class SubmitRequest(BaseModel):
-    bundle_id: str
-    results: Dict[str, Any]   # test မှာ {"ok": True} လောက်ပဲ ပို့မယ်
-
-class SubmitResponse(BaseModel):
-    ok: bool
-    bundle_id: str
-    paid_usd: float
-    new_balance: float
+class TaskSubmission(BaseModel):
+    user_id: str = Field(..., min_length=1)
+    task_type: TaskType = "daily"
+    proof: Optional[str] = None
+    accuracy: Optional[float] = 1.0
+    submitted_at: Optional[datetime] = None

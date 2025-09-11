@@ -1,78 +1,118 @@
-from __future__ import annotations
+# src/wallet/service.py
 from datetime import datetime
-from typing import Dict, Any
+from src.db import q, exec1
+from typing import List, Dict
+def _ensure_wallet(user_id: str):
+    rows = q("SELECT user_id FROM wallets WHERE user_id = ?", [user_id])
+    if not rows:
+        exec1("INSERT INTO wallets(user_id, available_balance, pending_withdrawal) VALUES (?, 0, 0)", [user_id])
 
-# In‑memory monthly contribution holds: {(user_id, "YYYY-MM"): amount}
-_CONTRI_HOLDS: Dict[tuple, float] = {}
+def add_to_wallet(user_id: str, amount: float, ts: datetime) -> float:
+    _ensure_wallet(user_id)
+    exec1(
+        "UPDATE wallets SET available_balance = ROUND(available_balance + ?, 2), last_contribution = ? WHERE user_id = ?",
+        [float(amount), ts.isoformat(), user_id],
+    )
+    return get_wallet(user_id)["available_balance"]
 
-def _safe_call(fn_name: str, *args, **kwargs):
-    """
-    Try calling provider from existing daily/classic modules if available.
-    If not present, return 0. This keeps aggregator robust while modules evolve.
-    Expected provider signatures (optional in your codebase):
-      - daily.controller.get_totals(user_id) -> {"today":x,"week":y,"month":z}
-      - classic.controller.get_totals(user_id) -> {"today":x,"week":y,"month":z}
-    """
-    try:
-        # daily
-        if fn_name == "daily_totals":
-            from daily import controller as dctl  # type: ignore
-            if hasattr(dctl, "get_totals"):
-                return dctl.get_totals(*args, **kwargs)
-        # classic
-        if fn_name == "classic_totals":
-            from classic import controller as cctl  # type: ignore
-            if hasattr(cctl, "get_totals"):
-                return cctl.get_totals(*args, **kwargs)
-    except Exception:
-        pass
-    # Fallback zeros
-    return {"today": 0.0, "week": 0.0, "month": 0.0}
+def get_wallet(user_id: str) -> dict:
+    _ensure_wallet(user_id)
+    row = q("SELECT user_id, available_balance, pending_withdrawal, last_contribution FROM wallets WHERE user_id = ?", [user_id])[0]
+    return row
 
-def get_earnings_breakdown(user_id: str) -> Dict[str, Any]:
-    """Merge classic + daily into a single breakdown dict."""
-    daily = _safe_call("daily_totals", user_id=user_id)
-    classic = _safe_call("classic_totals", user_id=user_id)
-
-    today = float(daily.get("today", 0)) + float(classic.get("today", 0))
-    week  = float(daily.get("week", 0))  + float(classic.get("week", 0))
-    month = float(daily.get("month", 0)) + float(classic.get("month", 0))
-
-    return {
-        "classic": {"today": float(classic.get("today", 0)), "week": float(classic.get("week", 0)), "month": float(classic.get("month", 0))},
-        "daily":   {"today": float(daily.get("today", 0)),   "week": float(daily.get("week", 0)),   "month": float(daily.get("month", 0))},
-        "today": today, "week": week, "month": month,
-    }
-
-def apply_monthly_contribution(user_id: str, month: str, amount: float = 100.0) -> Dict[str, Any]:
-    """
-    Hold monthly contribution (default $100). Idempotent per (user, month).
-    """
-    key = (user_id, month)
-    if key not in _CONTRI_HOLDS:
-        _CONTRI_HOLDS[key] = float(amount)
-    held = _CONTRI_HOLDS[key]
-    # Withdrawable is month_earn - held (never below zero)
-    brk = get_earnings_breakdown(user_id)
-    month_earn = float(brk.get("month", 0.0))
-    withdrawable = max(0.0, month_earn - held)
-    return {"user_id": user_id, "month": month, "held": held, "month_earn": month_earn, "withdrawable": withdrawable}
-
-def get_wallet_summary(user_id: str) -> Dict[str, Any]:
-    """
-    Summarize wallet for dashboard. With no DB yet, total_earn ~= month_earn (MVP).
-    Later, replace with DB lifetime sum.
-    """
-    brk = get_earnings_breakdown(user_id)
-    month_earn = float(brk.get("month", 0.0))
-    month_key = datetime.utcnow().strftime("%Y-%m")
-    held = _CONTRI_HOLDS.get((user_id, month_key), 0.0)
-    withdrawable = max(0.0, month_earn - held)
+def get_wallet_summary(user_id: str) -> dict:
+    w = get_wallet(user_id)
     return {
         "user_id": user_id,
-        "total_earn": month_earn,     # TODO: swap to lifetime when DB wired
-        "month_earn": month_earn,
-        "contribution_held": held,
-        "withdrawable": withdrawable,
-        "breakdown": brk,
+        "available_balance": w["available_balance"],
+        "pending_withdrawal": w["pending_withdrawal"],
+        "last_contribution": w["last_contribution"],
     }
+
+def get_all_wallets_summary() -> dict:
+    rows = q("SELECT user_id, available_balance, pending_withdrawal, last_contribution FROM wallets")
+    total = sum(r["available_balance"] for r in rows)
+    top = sorted(rows, key=lambda r: r["available_balance"], reverse=True)[:5]
+    return {
+        "wallet_users": len(rows),
+        "total_available_balance": round(total, 2),
+        "top_balances": top
+    }
+
+MIN_WITHDRAW = 0.50  # prevent tiny spam payouts
+
+def _ensure_wallet(user_id: str):
+    rows = q("SELECT user_id FROM wallets WHERE user_id = ?", [user_id])
+    if not rows:
+        exec1("INSERT INTO wallets(user_id, available_balance, pending_withdrawal) VALUES (?, 0, 0)", [user_id])
+
+def request_withdraw(user_id: str, amount: float, method: str, details: str | None) -> dict:
+    _ensure_wallet(user_id)
+    if amount < MIN_WITHDRAW:
+        raise ValueError(f"Minimum withdraw is {MIN_WITHDRAW:.2f}")
+    w = q("SELECT available_balance, pending_withdrawal FROM wallets WHERE user_id=?", [user_id])[0]
+    if float(w["available_balance"]) < amount:
+        raise ValueError("Insufficient available balance")
+
+    # move funds: available -> pending
+    ts = datetime.utcnow().isoformat()
+    exec1("UPDATE wallets SET available_balance = ROUND(available_balance - ?,2), "
+          "pending_withdrawal = ROUND(pending_withdrawal + ?,2) WHERE user_id = ?",
+          [amount, amount, user_id])
+
+    wid = exec1(
+        "INSERT INTO withdrawals(user_id, amount, method, details, status, requested_at) "
+        "VALUES (?, ?, ?, ?, 'requested', ?)",
+        [user_id, amount, method, details, ts]
+    )
+    return {"withdraw_id": wid, "status": "requested", "requested_at": ts, "amount": round(amount,2)}
+
+def get_user_withdrawals(user_id: str, limit: int = 50) -> dict:
+    rows = q("SELECT id as withdraw_id, amount, method, details, status, requested_at, decided_at, tx_ref "
+             "FROM withdrawals WHERE user_id=? ORDER BY requested_at DESC LIMIT ?", [user_id, int(limit)])
+    return {"user_id": user_id, "count": len(rows), "items": rows}
+
+def admin_list_withdrawals(status: str | None = None, limit: int = 100) -> dict:
+    if status:
+        rows = q("SELECT id as withdraw_id, user_id, amount, method, status, requested_at "
+                 "FROM withdrawals WHERE status=? ORDER BY requested_at ASC LIMIT ?", [status, int(limit)])
+    else:
+        rows = q("SELECT id as withdraw_id, user_id, amount, method, status, requested_at "
+                 "FROM withdrawals ORDER BY requested_at ASC LIMIT ?", [int(limit)])
+    return {"count": len(rows), "items": rows}
+
+def approve_withdraw(withdraw_id: int, tx_ref: str | None) -> dict:
+    # fetch
+    row = q("SELECT user_id, amount, status FROM withdrawals WHERE id=?", [withdraw_id])
+    if not row:
+        raise ValueError("Withdrawal not found")
+    rec = row[0]
+    if rec["status"] != "requested":
+        raise ValueError("Only 'requested' can be approved")
+
+    # move pending -> paid (reduce pending)
+    exec1("UPDATE wallets SET pending_withdrawal = ROUND(pending_withdrawal - ?,2) WHERE user_id=?",
+          [rec["amount"], rec["user_id"]])
+
+    ts = datetime.utcnow().isoformat()
+    exec1("UPDATE withdrawals SET status='paid', decided_at=?, tx_ref=? WHERE id=?",
+          [ts, tx_ref, withdraw_id])
+    return {"withdraw_id": withdraw_id, "status": "paid", "decided_at": ts, "tx_ref": tx_ref}
+
+def reject_withdraw(withdraw_id: int, tx_ref: str | None = None) -> dict:
+    row = q("SELECT user_id, amount, status FROM withdrawals WHERE id=?", [withdraw_id])
+    if not row:
+        raise ValueError("Withdrawal not found")
+    rec = row[0]
+    if rec["status"] != "requested":
+        raise ValueError("Only 'requested' can be rejected")
+
+    # refund: pending -> available
+    exec1("UPDATE wallets SET pending_withdrawal = ROUND(pending_withdrawal - ?,2), "
+          "available_balance = ROUND(available_balance + ?,2) WHERE user_id=?",
+          [rec["amount"], rec["amount"], rec["user_id"]])
+
+    ts = datetime.utcnow().isoformat()
+    exec1("UPDATE withdrawals SET status='rejected', decided_at=?, tx_ref=? WHERE id=?",
+          [ts, tx_ref, withdraw_id])
+    return {"withdraw_id": withdraw_id, "status": "rejected", "decided_at": ts}

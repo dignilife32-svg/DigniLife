@@ -1,14 +1,5 @@
+# src/classic/router.py
 from fastapi import APIRouter
 
-router = APIRouter()
-
-
-@router.get("/tasks")
-def list_classic_tasks():
-    return {"tasks": ["simple-label", "micro-review"]}
-
-
-@router.post("/submit")
-def submit_classic(payload: dict):
-    # classic earning flow handling ...
-    return {"ok": True, "credited": 1.25}
+router = APIRouter(prefix="/classic", tags=["classic"])
+# classic endpoints to be added soon

@@ -21,3 +21,14 @@ DigniLife app တစ်ခုထဲအတွင်းမှာသီးသန့
 - `default_bundle_minutes`: `60`
 - `target_usd_per_hour_low`: **$200**
 - `target_usd_per_hour_high`: **$300+** (အချိန်ပိုလုပ်လျှင် **$500**)
+
+## Dev (PostgreSQL)
+```bash
+git clone ...
+cd DigniLife
+python -m venv venv
+source venv/Scripts/activate   # or . venv/bin/activate (Linux/WSL)
+pip install -r requirements.txt
+cp .env.example .env           # fill values if needed
+
+./scripts/dev_psql.sh

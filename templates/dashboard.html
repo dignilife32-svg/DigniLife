@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Welcome, {{ admin_id }}</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>Wallets</h3>
+    <p>Total users: <b>{{ wallet.wallet_users }}</b></p>
+    <p>Total available: <b>${{ '%.2f'|format(wallet.total_available_balance) }}</b></p>
+    <h4>Top balances</h4>
+    <table>
+      <tr><th>User</th><th>Available</th><th>Pending</th></tr>
+      {% for w in wallet.top_balances %}
+      <tr><td>{{ w.user_id }}</td><td>${{ '%.2f'|format(w.available_balance) }}</td><td>${{ '%.2f'|format(w.pending_withdrawal or 0) }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Tasks</h3>
+    <p>Users with activity: <b>{{ tasks.users_with_activity }}</b></p>
+    <p>Total events: <b>{{ tasks.total_task_events }}</b></p>
+    <p>Total earned: <b>${{ tasks.total_earned }}</b></p>
+    <h4>Recent</h4>
+    <table>
+      <tr><th>User</th><th>Type</th><th>Earned</th><th>Bonus</th><th>At</th></tr>
+      {% for t in tasks.recent %}
+      <tr><td>{{ t.user_id }}</td><td>{{ t.task_type }}</td><td>${{ t.earned }}</td><td>{{ t.bonus_applied }}</td><td>{{ t.submitted_at }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Reports</h3>
+    <p>Total: <b>{{ reports.total_reports }}</b>, Open: <b>{{ reports.open_reports }}</b></p>
+    <table>
+      <tr><th>User</th><th>Category</th><th>Message</th><th>Status</th><th>At</th></tr>
+      {% for r in reports.latest %}
+      <tr><td>{{ r.user_id }}</td><td>{{ r.category }}</td><td>{{ r.message }}</td><td>{{ r.status }}</td><td>{{ r.submitted_at }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>SOS</h3>
+    <p>Total: <b>{{ sos.total_sos }}</b></p>
+    <table>
+      <tr><th>User</th><th>Reason</th><th>Status</th><th>At</th></tr>
+      {% for s in sos.latest %}
+      <tr><td>{{ s.user_id }}</td><td>{{ s.reason }}</td><td>{{ s.status }}</td><td>{{ s.received_at }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Pending Withdrawals</h3>
+    <table>
+      <tr><th>ID</th><th>User</th><th>Amount</th><th>Method</th><th>Requested</th><th>Action</th></tr>
+      {% for w in pending %}
+      <tr>
+        <td>{{ w.withdraw_id }}</td>
+        <td>{{ w.user_id }}</td>
+        <td>${{ '%.2f'|format(w.amount) }}</td>
+        <td>{{ w.method }}</td>
+        <td>{{ w.requested_at }}</td>
+        <td>
+          <form method="post" action="/wallet/withdraw/approve" style="display:inline">
+            <input type="hidden" name="withdraw_id" value="{{ w.withdraw_id }}">
+            <input type="hidden" name="tx_ref" value="UI-APPROVE">
+            <button>Approve</button>
+          </form>
+          <form method="post" action="/wallet/withdraw/reject" style="display:inline">
+            <input type="hidden" name="withdraw_id" value="{{ w.withdraw_id }}">
+            <input type="hidden" name="tx_ref" value="UI-REJECT">
+            <button class="danger">Reject</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}
