@@ -35,3 +35,6 @@ dist/
 *.egg-info/
 
 data/
+runtime/
+
+feedback_data.json
