@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from typing import List, Dict
 
-from src.db import q, exec1
+from src.db import q, exec1, q
 from src.sync.models import SyncOp, SyncPushResult
 from src.earn.service import submit_task, grant_manual_bonus
 from src.earn.models import BonusGrant

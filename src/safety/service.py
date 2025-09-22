@@ -47,18 +47,18 @@ def trigger_sos_manual(payload: SOSRequest) -> dict:
     return {"sos_id": str(entry_id), "status": "queued", "received_at": now}
 
 def list_sos(user_id: str, limit: int = 20) -> dict:
-    rows = q("""SELECT id as sos_id, reason, lat, lon, address, contact_name, contact_phone, received_at, status
+    rows = q ("""SELECT id as sos_id, reason, lat, lon, address, contact_name, contact_phone, received_at, status
                 FROM sos WHERE user_id = ? ORDER BY received_at DESC LIMIT ?""",
              [user_id, int(limit)])
     return {"user_id": user_id, "count": len(rows), "items": rows}
 
 def get_reports_stats(limit: int = 5) -> dict:
-    total = q("SELECT COUNT(*) c FROM reports")[0]["c"]
-    open_c = q("SELECT COUNT(*) c FROM reports WHERE status='open'")[0]["c"]
-    latest = q("SELECT id as report_id, user_id, category, message, submitted_at, status FROM reports ORDER BY submitted_at DESC LIMIT ?", [int(limit)])
+    total = q ("SELECT COUNT(*) c FROM reports")[0]["c"]
+    open_c = q ("SELECT COUNT(*) c FROM reports WHERE status='open'")[0]["c"]
+    latest = q ("SELECT id as report_id, user_id, category, message, submitted_at, status FROM reports ORDER BY submitted_at DESC LIMIT ?", [int(limit)])
     return {"total_reports": total, "open_reports": open_c, "latest": latest}
 
 def get_sos_stats(limit: int = 5) -> dict:
-    latest = q("SELECT id as sos_id, user_id, reason, received_at, status FROM sos ORDER BY received_at DESC LIMIT ?", [int(limit)])
-    total = q("SELECT COUNT(*) c FROM sos")[0]["c"]
+    latest = q ("SELECT id as sos_id, user_id, reason, received_at, status FROM sos ORDER BY received_at DESC LIMIT ?", [int(limit)])
+    total = q ("SELECT COUNT(*) c FROM sos")[0]["c"]
     return {"total_sos": total, "latest": latest}

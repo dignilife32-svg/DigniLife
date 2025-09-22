@@ -22,3 +22,4 @@ def test_daily_flow():
     d2 = r2.json()
     assert d2["ok"] is True
     assert d2["paid_usd"] > 0
+

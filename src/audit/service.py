@@ -1,7 +1,7 @@
 # src/audit/service.py
 import json
 from typing import Optional, Dict, Any, List
-from src.db import exec1, q
+from src.utils.db_helpers import exec, exec1, q
 
 def log_admin_action(admin_id: str, action: str, payload: Dict[str, Any], target_user: Optional[str] = None) -> int:
     return exec1(

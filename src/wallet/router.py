@@ -20,12 +20,6 @@ def wallet_summary(user_id: str = Query(..., min_length=1)):
     return get_wallet_summary(user_id)
 
 # ⬇️ USER endpoints (require token but any role ok)
-@router.post("/withdraw/request", dependencies=[Depends(require_user)])
-def withdraw_request(body: WithdrawRequestBody, user=Depends(require_user)):
-    try:
-        return request_withdraw(user_id=user["sub"], amount=body.amount, method=body.method, details=body.details)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/withdraw/list", dependencies=[Depends(require_user)])
 def withdraw_list(limit: int = 50, user=Depends(require_user)):
@@ -34,21 +28,7 @@ def withdraw_list(limit: int = 50, user=Depends(require_user)):
 # ⬇️ ADMIN endpoints
 @router.get("/withdraw/requests", dependencies=[Depends(require_admin)])
 def admin_withdraw_requests(status: str | None = None, limit: int = 100):
-    return admin_list_withdrawals(status=status, limit=limit)
-
-@router.post("/withdraw/approve", dependencies=[Depends(require_admin)])
-def admin_withdraw_approve(body: WithdrawAdminAction):
-    try:
-        return approve_withdraw(withdraw_id=body.withdraw_id, tx_ref=body.tx_ref)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.post("/withdraw/reject", dependencies=[Depends(require_admin)])
-def admin_withdraw_reject(body: WithdrawAdminAction):
-    try:
-        return reject_withdraw(withdraw_id=body.withdraw_id, tx_ref=body.tx_ref)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return admin_list_withdrawals(status=status, limit=limit) 
 
 @router.post("/withdraw/approve", dependencies=[Depends(require_admin)])
 def admin_withdraw_approve(body: WithdrawAdminAction, admin=Depends(require_admin)):

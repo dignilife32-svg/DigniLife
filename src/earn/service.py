@@ -5,7 +5,7 @@ from src.daily.models import TaskSubmission
 from src.daily.controller import submit_daily
 from src.wallet.service import add_to_wallet
 from src.earn.models import BonusGrant, BonusPolicy
-from src.db import q, exec1
+from src.utils.db_helpers import exec, exec1, q
 
 TaskType = Literal["daily", "classic"]
 

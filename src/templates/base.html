@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{% block title %}DigniLife Admin{% endblock %}</title>
+    <link rel="stylesheet" href="/static/admin.css"/>
+    {% block head %}{% endblock %}
+  </head>
+  <body class="app dark">
+    <!-- Topbar -->
+    <header class="topbar">
+      <button id="sidebarToggle" class="icon-btn" aria-label="Toggle sidebar">☰</button>
+      <div class="brand">
+        <a href="/admin/ui">DigniLife Admin</a>
+      </div>
+      <nav class="top-actions">
+        <a class="btn" href="/admin/ui">Dashboard</a>
+        <a class="btn" href="/admin/bonus-ui">Bonus UI</a>
+        <a class="btn warn" href="/admin/logout">Logout</a>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="sidebar">
+        <div class="menu">
+          <a href="/admin/ui" class="menu-item">🏠 Dashboard</a>
+          <a href="/admin/bonus-ui" class="menu-item">📈 Bonus UI</a>
+          <a href="/admin/reports" class="menu-item">🧾 Reports</a>
+          <a href="/admin/latency" class="menu-item">⏱ Latency (raw)</a>
+          <a href="/admin/latency/history?limit=50" class="menu-item">🗂 Recent (raw)</a>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div>© DigniLife · <a href="/admin/ui">Admin</a></div>
+      <div class="right">v1 · {{ request.url.path }}</div>
+    </footer>
+
+    <script>
+      // simple sidebar toggle for mobile
+      document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+        document.getElementById('sidebar')?.classList.toggle('collapsed');
+      });
+
+      // mark active link
+      (function () {
+        const path = location.pathname;
+        document.querySelectorAll('.sidebar .menu-item').forEach(a => {
+          if (a.getAttribute('href') === path) a.classList.add('active');
+        });
+      })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

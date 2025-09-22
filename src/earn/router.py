@@ -13,9 +13,6 @@ from .service import (
 
 router = APIRouter(prefix="/task", tags=["task"])
 
-@router.post("/submit")
-def task_submit(submission: TaskSubmission):
-    return submit_task(submission)
 
 @router.get("/earnings/history")
 def earnings_history(user_id: str = Query(..., min_length=1), limit: int = 50):
@@ -27,21 +24,11 @@ def bonus_policy_get() -> BonusPolicy:
     return get_bonus_policy()
 
 # ⚠️ MVP: no auth yet. Later: protect with admin auth.
-@router.post("/bonus/policy")
-def bonus_policy_set(payload: BonusPolicy) -> BonusPolicy:
-    return set_bonus_policy(payload)
-
-@router.post("/bonus/grant")
-def bonus_grant(payload: BonusGrant):
-    return grant_manual_bonus(payload)
 
 # ...
-@router.post("/bonus/policy", dependencies=[Depends(require_admin)])
-def bonus_policy_set(payload: BonusPolicy) -> BonusPolicy:
-    return set_bonus_policy(payload)
 
 @router.post("/bonus/grant", dependencies=[Depends(require_admin)])
-def bonus_grant(payload: BonusGrant):
+def bonus_gran(payload: BonusGrant):
     return grant_manual_bonus(payload)
 
 # existing @router.post("/bonus/policy", ...) stays protected
