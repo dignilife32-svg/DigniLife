@@ -1,6 +1,9 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import relationship
-from src.db.session import Base
+from src.db.session import Base 
+
+class SomeModel(Base):
+    __tablename__ = "some"
 
 class Reward(Base):
     __tablename__ = "rewards"
