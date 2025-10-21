@@ -1,8 +1,11 @@
 # src/wallet/client.py
-from typing import Tuple, Dict
+# InMemory wallet client — dev/test helper only (NOT used in prod DB path)
+
+from typing import Dict, Tuple
+
 
 class InMemoryWallet:
-    """Very simple in-memory wallet used for dev/tests."""
+    """Simple in‑memory wallet for local tests."""
     def __init__(self) -> None:
         self._bal: Dict[str, float] = {}
 
@@ -10,25 +13,22 @@ class InMemoryWallet:
         return float(self._bal.get(user_id, 0.0))
 
     def credit(self, user_id: str, amount: float) -> float:
-        amt = float(amount)
-        self._bal[user_id] = self.balance(user_id) + amt
-        return self._bal[user_id]
+        new_bal = self._bal.get(user_id, 0.0) + float(amount)
+        self._bal[user_id] = new_bal
+        return new_bal
 
     def debit(self, user_id: str, amount: float) -> Tuple[bool, float]:
-        amt = float(amount)
-        cur = self.balance(user_id)
-        new_bal = cur - amt
+        cur = self._bal.get(user_id, 0.0)
+        new_bal = cur - float(amount)
         if new_bal < 0:
-            # not enough funds
             return False, cur
         self._bal[user_id] = new_bal
         return True, new_bal
 
-# single shared test/dev wallet
-_GLOBAL_WALLET = InMemoryWallet()
+
+# single global instance for tests
+GLOBAL_WALLET = InMemoryWallet()
+
 
 def get_wallet() -> InMemoryWallet:
-    """Factory used by routers/services."""
-    return _GLOBAL_WALLET
-
-__all__ = ["InMemoryWallet", "get_wallet"]
+    return GLOBAL_WALLET

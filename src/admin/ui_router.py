@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Depends, Form, Response, HTTPException
 from fastapi.templating import Jinja2Templates
 from src.auth.security import make_token, ADMIN_KEY, COOKIE_NAME, require_user_cookie, verify_token
 from src.auth.security import require_admin  # reuse for API fetches via cookie dep
-from src.earn.service import get_task_stats
+from src import get_task_stats
 from src.wallet.service import get_all_wallets_summary, admin_list_withdrawals
 from src.safety.service import get_reports_stats, get_sos_stats
 import json

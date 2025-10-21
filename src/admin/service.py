@@ -1,5 +1,5 @@
 # src/admin/service.py
-from src.earn.service import get_task_stats
+from src import get_task_stats
 from src.wallet.service import get_all_wallets_summary
 from src.safety.service import get_reports_stats, get_sos_stats
 

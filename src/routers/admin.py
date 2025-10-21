@@ -1,24 +1,32 @@
 # src/routers/admin.py
-from typing import Any, Dict, List
-from fastapi import APIRouter
-from pathlib import Path
-import json
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from typing import Optional
+from src.admin.queue import list_withdrawals, approve, reject
+from src.security import require_admin  # your existing guard
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-QUEUE = Path("runtime/admin_queue.jsonl")
 
-@router.get("/reviews")
-def list_reviews() -> List[Dict[str, Any]]:
-    if not QUEUE.exists():
-        return []
-    return [json.loads(line) for line in QUEUE.open("r", encoding="utf-8")]
+@router.get("/withdraw/queue")
+def admin_queue_list(
+    status_filter: str = Query("pending"),
+    _=Depends(require_admin),
+):
+    return {"items": list_withdrawals(status_filter)}
 
-@router.get("/reviews/{rid}")
-def get_review(rid: str):
-    if not QUEUE.exists():
-        return {"detail": "not found"}
-    for line in QUEUE.open("r", encoding="utf-8"):
-        item = json.loads(line)
-        if item.get("id") == rid:
-            return item
-    return {"detail": "not found"}
+@router.post("/withdraw/{wid}/approve")
+def admin_withdraw_approve(
+    wid: str, note: Optional[str] = Body(default=""), _=Depends(require_admin)
+):
+    try:
+        return approve(wid, note=note or "")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.post("/withdraw/{wid}/reject")
+def admin_withdraw_reject(
+    wid: str, reason: Optional[str] = Body(default="not_specified"), _=Depends(require_admin)
+):
+    try:
+        return reject(wid, reason=reason or "not_specified")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

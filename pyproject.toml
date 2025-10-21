@@ -1,6 +1,14 @@
-[tool.pyright]
-include = ["src"]
-extraPaths = ["."]
-reportMissingImports = true
-exclude = ["legacy", "src/**/__pycache__", "migrations/__pycache__"]
+[tool.pylight]
+include = ["src", "tests"]
+exclude = ["legacy", "migrations", "**/__pycache__"]
+venv = ".venv"
+venvPath = "."
 typeCheckingMode = "off"
+
+# VSCode/Pylance settings
+reportMissingImports = false
+reportMissingTypeStubs = false
+reportGeneralTypeIssues = "none"
+reportOptionalMemberAccess = "none"
+reportOptionalSubscript = "none"
+reportUnknownVariableType = "none"

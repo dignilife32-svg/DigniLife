@@ -1,28 +1,20 @@
 # src/sync/models.py
+from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import List, Literal, Optional, Any
-from datetime import datetime
+from typing import Optional, List
 
-OpType = Literal["task.submit", "bonus.grant", "user.report", "sos.manual"]
 
-class SyncOp(BaseModel):
-    op_id: str = Field(..., min_length=8)     # client-generated UUID
-    user_id: str
-    op_type: OpType
-    payload: dict
+class EarnEvent(BaseModel):
+    id: Optional[str] = Field(default=None, description="client-side event id (optional)")
+    usd_cents: int = Field(..., ge=1, example=250)
+    note: Optional[str] = Field(default=None, example="testing bonus")
+    ref: Optional[str] = Field(default=None, example="task:c1")  # idempotency key (optional)
 
-class SyncPushRequest(BaseModel):
-    ops: List[SyncOp]
 
-class SyncPushResult(BaseModel):
-    op_id: str
-    status: Literal["applied", "duplicate", "failed"]
-    result: Optional[Any] = None
-    error: Optional[str] = None
+class PushIn(BaseModel):
+    earn: List[EarnEvent] = Field(default_factory=list)
 
-class SyncPullResponse(BaseModel):
-    since: Optional[str] = None
-    tasks: list = []
-    bonuses: list = []
-    reports: list = []
-    sos: list = []
+
+class PushOut(BaseModel):
+    accepted: int
+    skipped: int

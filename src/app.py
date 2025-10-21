@@ -1,6 +1,6 @@
 ﻿# src/app.py
 from fastapi import FastAPI
-from src.router import attach_routes   # absolute import
+  # absolute import
 from src.admin.router import router as admin_router
 
 def make_app() -> FastAPI:
@@ -10,7 +10,7 @@ def make_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    attach_routes(app)
+    (app)
     app.include_router(admin_router)
     return app
 

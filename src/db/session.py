@@ -1,45 +1,45 @@
 # src/db/session.py
 from __future__ import annotations
+from typing import AsyncGenerator
 
-import os
-from typing import Generator, Dict, Any, Optional
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session, declarative_base
-
-# ---- DB URL (env > default sqlite) ----
-DB_URL: str = (
-    os.getenv("DB_URL")
-    or os.getenv("SQLITE", "sqlite:///./dignilife.db")
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    AsyncSession,
+    async_sessionmaker,
+    AsyncEngine,
 )
+from sqlalchemy.orm import declarative_base
 
-# sqlite အတွက် special arg
-connect_args: Dict[str, Any] = (
-    {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
-)
+# our config (compat: effective_db_url() exists per earlier step)
+from src.config import effective_db_url
 
-# ---- Engine / Session factory ----
-engine = create_engine(
-    DB_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-    future=True,
-)
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    autocommit=False,
-    autoflush=False,
-    future=True,
-)
-
-# Model base export (models.py မှာ Base = declarative_base() မလုပ်တော့)
+# ---- single global Base for ALL models ----
 Base = declarative_base()
 
-def get_db() -> Generator[Session, None, None]:
-    """FastAPI Depends() အတွက် DB session provider."""
-    db: Session = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# ---- engine / session factory ----
+DB_DSN: str = effective_db_url().replace("sqlite:///", "sqlite+aiosqlite:///")
+engine: AsyncEngine = create_async_engine(
+    DB_DSN,
+    future=True,
+    pool_pre_ping=True,
+)
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    expire_on_commit=False,
+    class_=AsyncSession,
+)
+
+# dependency
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as s:
+        yield s
+
+# create tables once at startup
+async def create_tables_once() -> None:
+    # VERY IMPORTANT: import all model modules so metadata knows them
+    from src.wallet.models import WalletLedger  # noqa: F401
+    # If you have other apps' models, import them here too:
+    # from src.db.models import SomeOtherModel  # noqa: F401
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)

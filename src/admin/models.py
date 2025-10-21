@@ -1,19 +1,29 @@
-
 # src/admin/models.py
-from sqlalchemy import String, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
-from src.db.session import Base
-from typing import Dict
+from __future__ import annotations
 
-class User(Base):
-    __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=True)
-    phone: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=True)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+from typing import Optional
+from pydantic import BaseModel, Field
 
-# Summary schema format
-UserEarnings = Dict[str, float]  # e.g. {"usd": 12.50, "minutes": 60, ...}
-TaskStats = Dict[str, int]       # e.g. {"read_aloud": 4, "qr_proof": 2, ...}
+# ---- Admin task upsert / out -----------------------------------------------
+
+class AdminTaskUpssert(BaseModel):
+    code: str = Field(..., min_length=1, max_length=64)
+    category: str
+    display_value_usd: float
+    expected_time_sec: int
+    description: str
+    user_prompt: str
+    is_active: bool = True
+
+    # Optional: daily streak bonus system (if you really need it on this model)
+    streak_days: int = Field(default=60, ge=0)
+
+class AdminTaskOut(BaseModel):
+    code: str
+    category: str
+    display_value_usd: float
+    expected_time_sec: int
+    user_prompt: str
+    description: str
+    is_active: bool
+    streak_days: int = Field(default=60, ge=0)

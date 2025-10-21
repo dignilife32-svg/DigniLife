@@ -34,7 +34,10 @@ build/
 dist/
 *.egg-info/
 
-data/
-runtime/
+data/** 
+runtime/** 
 
 feedback_data.json
+
+etc/codegen/** 
+src/codegen/** 

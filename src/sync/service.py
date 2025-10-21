@@ -1,106 +1,52 @@
 # src/sync/service.py
-import json
-from datetime import datetime
-from typing import List, Dict
+from __future__ import annotations
 
-from src.db import q, exec1, q
-from src.sync.models import SyncOp, SyncPushResult
-from src.earn.service import submit_task, grant_manual_bonus
-from src.earn.models import BonusGrant
-from src.daily.models import TaskSubmission
-from src.safety.service import submit_user_report, trigger_sos_manual
-from src.safety.models import UserReport, SOSRequest, Geo
+from typing import List, Dict, Any, Optional
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-def _record_received(op: SyncOp):
-    try:
-        exec1(
-            """INSERT INTO sync_ops(client_op_id, user_id, op_type, payload_json, status)
-               VALUES (?, ?, ?, ?, 'received')""",
-            [op.op_id, op.user_id, op.op_type, json.dumps(op.payload, ensure_ascii=False)],
-        )
-        return True
-    except Exception:
-        # likely UNIQUE conflict => already seen
+from src.wallet.logic import add_earning
+
+
+async def _ref_exists(db: AsyncSession, *, user_id: str, ref: Optional[str]) -> bool:
+    if not ref:
         return False
+    q = text(
+        """
+        SELECT 1
+        FROM wallet_ledger
+        WHERE user_id = :user_id AND ref = :ref
+        LIMIT 1
+        """
+    )
+    row = await db.scalar(q, {"user_id": user_id, "ref": ref})
+    return bool(row)
 
-def _mark_applied(op_id: str, result: dict):
-    exec1("""UPDATE sync_ops SET status='applied', result_json=?, applied_at=? WHERE client_op_id=?""",
-          [json.dumps(result, default=str), datetime.utcnow().isoformat(), op_id])
 
-def _mark_failed(op_id: str, error: str):
-    exec1("""UPDATE sync_ops SET status='failed', error=?, applied_at=? WHERE client_op_id=?""",
-          [error, datetime.utcnow().isoformat(), op_id])
+async def sync_earn_events(db: AsyncSession, *, user_id: str, events: List[Dict[str, Any]]) -> Dict[str, int]:
+    """
+    Minimal offline->online sync for earn events.
+    - Skips duplicate refs for same user (idempotent-ish without schema change)
+    - Writes via wallet.logic.add_earning
+    """
+    accepted = 0
+    skipped = 0
 
-def process_ops(ops: List[SyncOp]) -> List[SyncPushResult]:
-    results: List[SyncPushResult] = []
+    for ev in events:
+        usd_cents = int(float(ev.get("usd_cents", 0)))
+        note = ev.get("note") or None
+        ref = ev.get("ref") or None
 
-    for op in ops:
-        # idempotency: if exists and applied -> return duplicate with stored result
-        row = q("SELECT status, result_json, error FROM sync_ops WHERE client_op_id=?", [op.op_id])
-        if row and row[0]["status"] == "applied":
-            results.append(SyncPushResult(op_id=op.op_id, status="duplicate",
-                                          result=json.loads(row[0]["result_json"]) if row[0]["result_json"] else None))
+        if usd_cents <= 0:
+            skipped += 1
             continue
-        if not row:
-            _record_received(op)
 
-        try:
-            if op.op_type == "task.submit":
-                result = submit_task(TaskSubmission(**op.payload))
-            elif op.op_type == "bonus.grant":
-                result = grant_manual_bonus(BonusGrant(**op.payload))
-            elif op.op_type == "user.report":
-                result = submit_user_report(UserReport(**op.payload))
-            elif op.op_type == "sos.manual":
-                # payload.location is dict; Pydantic will coerce
-                result = trigger_sos_manual(SOSRequest(**op.payload))
-            else:
-                raise ValueError(f"Unknown op_type: {op.op_type}")
+        # idempotency by (user_id, ref)
+        if await _ref_exists(db, user_id=user_id, ref=ref):
+            skipped += 1
+            continue
 
-            _mark_applied(op.op_id, result)
-            results.append(SyncPushResult(op_id=op.op_id, status="applied", result=result))
-        except Exception as e:
-            _mark_failed(op.op_id, str(e))
-            results.append(SyncPushResult(op_id=op.op_id, status="failed", error=str(e)))
+        await add_earning(db, user_id=user_id, usd_cents=usd_cents, note=note, ref=ref)
+        accepted += 1
 
-    return results
-
-def pull_since(user_id: str, since_iso: str | None) -> Dict:
-    # Return server-side changes for the user since timestamp (inclusive)
-    params = [user_id]
-    where = "WHERE user_id = ?"
-    if since_iso:
-        where += " AND submitted_at >= ?"
-        params.append(since_iso)
-
-    tasks = q(f"""SELECT id, task_type, accuracy, proof, earned, bonus_applied, submitted_at
-                  FROM tasks {where} ORDER BY submitted_at ASC""", params)
-
-    bonuses = q(
-        f"""SELECT id, amount, reason, granted_at
-            FROM bonuses WHERE user_id = ? {"AND granted_at >= ?" if since_iso else ""} ORDER BY granted_at ASC""",
-        params
-    )
-
-    reports = q(
-        f"""SELECT id, category, message, severity, submitted_at, status
-            FROM reports WHERE user_id = ? {"AND submitted_at >= ?" if since_iso else ""} ORDER BY submitted_at ASC""",
-        params
-    )
-
-    sos = q(
-        f"""SELECT id, reason, lat, lon, address, contact_name, contact_phone, received_at, status
-            FROM sos WHERE user_id = ? {"AND received_at >= ?" if since_iso else ""} ORDER BY received_at ASC""",
-        params
-    )
-
-    # normalize types
-    for t in tasks: t["bonus_applied"] = bool(t["bonus_applied"])
-
-    return {
-        "since": since_iso,
-        "tasks": tasks,
-        "bonuses": bonuses,
-        "reports": reports,
-        "sos": sos
-    }
+    return {"accepted": accepted, "skipped": skipped}

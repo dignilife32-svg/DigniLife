@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Dict
 import uuid
 from src.safety.models import UserReport, SOSRequest
-from src.db import q, exec1
+from src.db.session import get_session, q, exec1
 
 _last_sos_at: Dict[str, datetime] = {}
 
