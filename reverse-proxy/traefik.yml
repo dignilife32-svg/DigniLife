@@ -1,0 +1,4 @@
+log: { level: INFO }
+accessLog: {}
+api: { insecure: false }
+serversTransport: { insecureSkipVerify: true }

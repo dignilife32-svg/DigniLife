@@ -2,8 +2,9 @@
 from __future__ import annotations
 from sqlite3 import Connection
 from typing import Any, Iterable, Mapping, Sequence, Tuple
-from src.wallet.models import WalletLedger
-from src.wallet.models import LedgerType
+from src.db.models import WalletLedger
+from src.db.models import LedgerType
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
@@ -48,3 +49,19 @@ async def commit_ledger_entry(
     await db.commit()
     await db.refresh(entry)
     return entry.id
+
+async def q(db: AsyncSession, sql: str, **params):
+    return await db.execute(text(sql), params)
+
+async def get_tasks_stats(db: AsyncSession) -> dict:
+    # TODO: real impl
+    row = await q(db, "SELECT COUNT(*) AS n FROM daily_tasks")
+    n = row.scalar_one()
+    return {"daily_tasks": n}
+
+async def fallback_log(db: AsyncSession, event: str, payload: dict | None = None):
+    # TODO: real impl (simple audit trail)
+    await q(db,
+        "INSERT INTO audit_log(event, payload) VALUES (:e, :p)",
+        e=event, p=str(payload or {}))
+    

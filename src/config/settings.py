@@ -19,6 +19,8 @@ SQLALCHEMY_DATABASE_URL = (
     or os.getenv("DB_SQLITE", "sqlite:///./dignilife.db").strip()
 )
 
+ADMIN_POOL_USER_ID = os.getenv("ADMIN_POOL_USER_ID", "admin_pool")
+
 def _sqlite_abspath(url: str, async_driver: bool = False) -> str:
     """
     sqlite:///./file.db  -> sqlite(+aiosqlite):///C:/abs/path/file.db
@@ -48,3 +50,8 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 BONUS_PERCENT      = Decimal(os.getenv("BONUS_PERCENT", "0.05"))   # 5%
 BONUS_MIN_CENTS    = Decimal(os.getenv("BONUS_MIN_CENTS", "5"))    # >= $0.05
 BONUS_DAILY_CAP_USD= Decimal(os.getenv("BONUS_DAILY_CAP_USD", "3.00"))  # per user/day
+
+# settings.py
+
+TESTING = os.getenv("TESTING") == "1"
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")

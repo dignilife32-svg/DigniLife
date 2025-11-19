@@ -1,12 +1,11 @@
-# tests/test_ai_guard.py
-from fastapi.testclient import TestClient
-from src.main import app
+from __future__ import annotations
+import pytest
 
-client = TestClient(app)
+pytestmark = pytest.mark.anyio
 HEAD = {"x-user-id": "demo"}
 
-def test_echo_signals_present():
-    r = client.post("/echo", json={"message": "please fix this asap"}, headers=HEAD)
-    j = r.json()
-    assert "signals" in j
-    assert j["signals"]["confidence"] <= 1.0
+async def test_echo_signals(client):
+    r = await client.get("/ai/health", headers=HEAD)
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("ok") is True

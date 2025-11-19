@@ -42,7 +42,7 @@ async def submit_task(
     await add_earning(
         db,
         user_id=user_id,
-        usd_cents=payload.usd_cents,
+        usd_cents = payload.usd_cents,
         note=f"{payload.note}:{payload.task_code}",
         ref=f"daily:{payload.task_code}",
     )
@@ -61,3 +61,4 @@ async def get_today_tasks(session=Depends(get_session)):
         select(DailyTask).where(DailyTask.date==today)
     )).scalars().all()
     return [r.as_dict() for r in rows]
+

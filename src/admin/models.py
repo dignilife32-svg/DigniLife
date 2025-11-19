@@ -1,29 +1,46 @@
 # src/admin/models.py
 from __future__ import annotations
+from typing import Optional, Dict, Literal
+from datetime import datetime
+from decimal import Decimal
+from pydantic import BaseModel, Field, ConfigDict
 
-from typing import Optional
-from pydantic import BaseModel, Field
+TaskCategory = Literal["content", "ops", "growth", "research", "other"]
 
-# ---- Admin task upsert / out -----------------------------------------------
-
-class AdminTaskUpssert(BaseModel):
-    code: str = Field(..., min_length=1, max_length=64)
-    category: str
-    display_value_usd: float
-    expected_time_sec: int
-    description: str
-    user_prompt: str
+class AdminTaskUpsert(BaseModel):
+    """Input schema for create/update (upsert)."""
+    model_config = ConfigDict(extra="ignore")
+    code: str = Field(min_length=1, max_length=64)
+    title: Optional[str] = None
+    category: Optional[TaskCategory] = None
+    display_value_usd: Optional[float] = None
+    expected_time_sec: Optional[int] = None
+    description: Optional[str] = None
+    user_prompt: Optional[str] = None
+    payload: Optional[Dict] = None
     is_active: bool = True
-
-    # Optional: daily streak bonus system (if you really need it on this model)
-    streak_days: int = Field(default=60, ge=0)
+    streak_days: int = Field(default=0, ge=0)
 
 class AdminTaskOut(BaseModel):
-    code: str
-    category: str
-    display_value_usd: float
-    expected_time_sec: int
-    user_prompt: str
-    description: str
-    is_active: bool
-    streak_days: int = Field(default=60, ge=0)
+    """Read model used by responses in router."""
+    code: str = Field(min_length=1, max_length=64)
+    title: Optional[str] = None
+    category: Optional[TaskCategory] = None
+    display_value_usd: Optional[float] = None
+    expected_time_sec: Optional[int] = None
+    description: Optional[str] = None
+    user_prompt: Optional[str] = None
+    payload: Optional[Dict] = None
+    is_active: bool = True
+    streak_days: int = 0
+
+class LedgerRow(BaseModel):
+    """Response row for /wallet/ledger."""
+    id: int
+    user_id: str
+    amount_usd: Decimal | float
+    ref: str
+    note: str
+    created_at: datetime
+
+__all__ = ["TaskCategory", "AdminTaskUpsert", "AdminTaskOut", "LedgerRow"]

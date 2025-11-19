@@ -10,9 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.session import get_session
 from src.admin.models import AdminTaskUpsert, AdminTaskOut, LedgerRow
+from .debug import status as debug_status
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+router.include_router(debug_status.router)
 
 def _require_admin(x_admin_key: Optional[str] = Header(default=None)) -> None:
     want = os.getenv("ADMIN_KEY", "letmein")
@@ -24,6 +26,9 @@ def _require_admin(x_admin_key: Optional[str] = Header(default=None)) -> None:
 async def health(_: None = Depends(_require_admin)):
     return {"ok": True}
 
+@router.get("/ping")
+async def ping():
+    return{"ok": True}
 
 # ------- TASKS -------
 

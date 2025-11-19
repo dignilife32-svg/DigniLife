@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DigniLife — Voice Assist</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head><body class="min-h-screen bg-gray-50">
+<div class="max-w-md mx-auto p-6 space-y-3">
+  <h1 class="text-2xl font-bold">Voice Assist</h1>
+  <input id="uid" class="w-full border rounded px-3 py-2" placeholder="user_123"/>
+  <div class="flex gap-2">
+    <button id="rec" class="px-4 py-2 rounded bg-blue-600 text-white">Start</button>
+    <button id="send" class="px-4 py-2 rounded bg-emerald-600 text-white" disabled>Submit</button>
+  </div>
+  <audio id="aud" controls class="w-full"></audio>
+  <pre id="out" class="text-xs bg-white border rounded p-3"></pre>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function devId(){ let d=localStorage.getItem("dl_device_id"); if(!d){d=crypto.randomUUID(); localStorage.setItem("dl_device_id",d);} return d; }
+let media, rec, chunks=[];
+$("rec").onclick=async ()=>{
+  if(!media){
+    media = await navigator.mediaDevices.getUserMedia({audio:true});
+    const mr = new MediaRecorder(media,{mimeType:"audio/webm"});
+    rec = mr; chunks=[];
+    mr.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
+    mr.onstop=()=>{
+      const blob=new Blob(chunks,{type:"audio/webm"});
+      $("aud").src=URL.createObjectURL(blob);
+      $("send").disabled=false;
+    };
+    mr.start(); $("rec").textContent="Stop"; $("send").disabled=true;
+  }else{
+    rec.stop(); media.getTracks().forEach(t=>t.stop()); media=null; $("rec").textContent="Start";
+  }
+};
+$("send").onclick=async ()=>{
+  const user_id = $("uid").value.trim(); if(!user_id){alert("User ID");return;}
+  const device_id = devId();
+  const blob = await fetch($("aud").src).then(r=>r.blob());
+  const b64 = await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result.split(",")[1]); fr.onerror=rej; fr.readAsDataURL(blob); });
+  const res = await fetch("/voice/submit",{method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({user_id, device_id, audio_b64:b64, autocredit:true})});
+  const data = await res.json();
+  $("out").textContent = (res.status+" "+res.statusText)+"\n"+JSON.stringify(data,null,2);
+};
+</script>
+</body></html>

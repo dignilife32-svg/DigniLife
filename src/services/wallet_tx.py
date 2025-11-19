@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-
+from sqlalchemy.ext.asyncio import AsyncSession
 
 def _ensure_wallet_row(db: Session, user_id: str) -> None:
     """
@@ -134,3 +134,21 @@ def get_wallet_summary(db: Session, user_id: str) -> Dict[str, Any]:
         "today_credited_usd": today,
         "last_tx": dict(last_tx) if last_tx else None,
     }
+
+ADMIN_UID = "admin"  # or load from config
+
+async def credit_admin(session: AsyncSession, amount: float, ref: str, note: str = "") -> None:
+    # Ledger insert
+    await session.execute(
+        text("""INSERT INTO wallet_ledger(user_id, amount_usd, ref, note)
+                VALUES (:uid, :amt, :ref, :note)"""),
+        {"uid": ADMIN_UID, "amt": amount, "ref": ref, "note": note},
+    )
+    # Balance update (idempotent UPSERT style)
+    await session.execute(
+        text("""UPDATE wallet_balances SET balance_usd = balance_usd + :amt
+                WHERE user_id = :uid"""),
+        {"uid": ADMIN_UID, "amt": amount},
+    )
+    await session.commit()
+    

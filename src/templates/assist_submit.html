@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DigniLife — AI Assist</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+<div class="max-w-md mx-auto p-6 space-y-3">
+  <h1 class="text-2xl font-bold">AI Assist</h1>
+
+  <label class="block">
+    <span class="text-sm text-gray-600">User ID</span>
+    <input id="uid" class="mt-1 w-full border rounded px-3 py-2" placeholder="user_123"/>
+  </label>
+
+  <label class="block">
+    <span class="text-sm text-gray-600">Task hint (optional)</span>
+    <select id="hint" class="mt-1 w-full border rounded px-3 py-2">
+      <option value="">auto</option>
+      <option>scan_qr</option><option>geo_ping</option>
+      <option>voice_3words</option><option>image_label</option><option>text_tag</option>
+    </select>
+  </label>
+
+  <label class="block">
+    <span class="text-sm text-gray-600">Text</span>
+    <textarea id="text" class="mt-1 w-full border rounded px-3 py-2" rows="3" placeholder="Describe or paste QR content..."></textarea>
+  </label>
+
+  <div>
+    <div class="text-sm text-gray-600 mb-1">Image (optional)</div>
+    <input id="img" type="file" accept="image/*" class="block w-full"/>
+  </div>
+
+  <div class="flex gap-2">
+    <button id="btnGeo" class="px-3 py-2 rounded bg-slate-700 text-white">Attach Geo</button>
+    <button id="btnSend" class="px-4 py-2 rounded bg-blue-600 text-white">Submit</button>
+  </div>
+
+  <pre id="out" class="text-xs bg-white border rounded p-3"></pre>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function devId(){ let d=localStorage.getItem("dl_device_id"); if(!d){d=crypto.randomUUID(); localStorage.setItem("dl_device_id",d);} return d; }
+
+let geo={lat:null,lon:null};
+$("btnGeo").onclick=()=>navigator.geolocation.getCurrentPosition(
+  p=>{geo.lat=p.coords.latitude; geo.lon=p.coords.longitude; $("btnGeo").textContent="Geo ✓";},
+  e=>{alert("Geo error: "+e.message);}
+);
+
+function fileToB64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(f); }); }
+
+$("btnSend").onclick=async ()=>{
+  const user_id = $("uid").value.trim(); if(!user_id){ alert("User ID"); return; }
+  const device_id = devId();
+  const text = $("text").value || null;
+  const task_hint = $("hint").value || null;
+  let image_b64 = null;
+  const f = $("img").files[0]; if(f){ image_b64 = await fileToB64(f); }
+
+  const body = { user_id, device_id, text, image_b64, lat:geo.lat, lon:geo.lon, task_hint, auto_credit:true };
+  const res = await fetch("/assist/submit", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  const data = await res.json();
+  $("out").textContent = (res.status+" "+res.statusText)+"\n"+JSON.stringify(data,null,2);
+};
+</script>
+</body>
+</html>

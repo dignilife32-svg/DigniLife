@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.db.session import get_session_cm
+from src.db.session import get_session_ctx
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -29,9 +29,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 """
 @router.on_event("startup")
-async def _ensure_table():
-    async with get_session_cm() as db:
-        await db.execute(text(CREATE_SQL))
+async def _ensure_table() -> None:
+    async with get_session_ctx() as db:
+     await db.execute(text(CREATE_SQL))
+     await db.commit()
 
 # --- tiny helper used by main.py to record a row ---
 async def write_audit_row(db: AsyncSession, ip: str, method: str, path: str, user_id: Optional[str], status: int, ms: int):
@@ -41,14 +42,14 @@ async def write_audit_row(db: AsyncSession, ip: str, method: str, path: str, use
 
 # --- admin views ---
 @router.get("/logs", dependencies=[Depends(_require_admin)])
-async def logs(limit: int = 100, db: AsyncSession = Depends(get_session_cm)):
+async def logs(limit: int = 100, db: AsyncSession = Depends(get_session_ctx)):
     rows = (await db.execute(text(
         "SELECT ts, ip, method, path, user_id, status, ms FROM audit_log ORDER BY id DESC LIMIT :l"
     ), {"l": limit})).all()
     return [{"ts": ts, "ip": ip, "method": m, "path": p, "user_id": u, "status": s, "ms": ms} for (ts, ip, m, p, u, s, ms) in rows]
 
 @router.get("/ui", response_class=HTMLResponse, dependencies=[Depends(_require_admin)])
-async def ui(limit: int = 200, db: AsyncSession = Depends(get_session_cm)):
+async def ui(limit: int = 200, db: AsyncSession = Depends(get_session_ctx)):
     rows = (await db.execute(text(
         "SELECT ts, ip, method, path, user_id, status, ms FROM audit_log ORDER BY id DESC LIMIT :l"
     ), {"l": limit})).all()

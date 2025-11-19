@@ -1,7 +1,7 @@
 # src/safety/service.py
 from __future__ import annotations
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Dict, Any, Optional
 import uuid
 from src.safety.models import UserReport, SOSRequest
 from src.db.session import get_session, q, exec1
@@ -62,3 +62,42 @@ def get_sos_stats(limit: int = 5) -> dict:
     latest = q ("SELECT id as sos_id, user_id, reason, received_at, status FROM sos ORDER BY received_at DESC LIMIT ?", [int(limit)])
     total = q ("SELECT COUNT(*) c FROM sos")[0]["c"]
     return {"total_sos": total, "latest": latest}
+
+# src/safety/service.py
+
+# ---------- Face verify ----------
+try:
+    # Prefer a concrete implementation if you already have it
+    from src.safety.facegate import verify_face_token as _verify_face_token  # type: ignore
+except Exception:  # graceful fallback
+    async def _verify_face_token(token: Optional[str], user_id: str, device_id: Optional[str] = None) -> bool:  # type: ignore
+        # Minimal safe default: require token + user_id to exist
+        return bool(token and user_id)
+
+# ---------- Risk assessment ----------
+try:
+    # If you already have a rich function, reuse it
+    from src.safety.risk import assess_withdraw_risk as _assess_withdraw_risk  # type: ignore
+except Exception:
+    async def _assess_withdraw_risk(
+        *, user_id: str, amount: float, ref: Optional[str] = None, **kwargs: Any
+    ) -> Dict[str, Any]:
+        """
+        Simple default policy:
+        - amount <= 0 → block
+        - amount > 200 → require face
+        - else → ok
+        """
+        reasons: list[str] = []
+        if amount <= 0:
+            return {"action": "block", "score": 1.0, "reasons": ["non_positive_amount"]}
+        if amount > 200:
+            return {"action": "face", "score": 0.6, "reasons": ["high_amount"]}
+        return {"action": "ok", "score": 0.1, "reasons": reasons}
+
+# ---------- Public, stable API exported to the rest of the app ----------
+async def verify_face_token(token: Optional[str], user_id: str, device_id: Optional[str] = None) -> bool:
+    return await _verify_face_token(token, user_id, device_id)
+
+async def assess_withdraw_risk(*, user_id: str, amount: float, ref: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+    return await _assess_withdraw_risk(user_id=user_id, amount=amount, ref=ref, **kwargs)

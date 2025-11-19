@@ -41,3 +41,7 @@ feedback_data.json
 
 etc/codegen/** 
 src/codegen/** 
+
+runtime/*.sqlite*
+
+worker.py

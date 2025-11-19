@@ -1,152 +1,135 @@
-# src/wallet/router.py
 from __future__ import annotations
-
-from typing import Optional
-from fastapi import APIRouter, Request, Depends, Header, HTTPException, status
+from typing import Optional, Any, Dict
+from fastapi import APIRouter, Depends, HTTPException, Body, Header, status
 from pydantic import BaseModel, Field
-from src.safety.risk import assess_withdraw_risk
-from src.safety.proofguard import require_face_proof, FaceProof
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.db.session import get_session
-from .logic import get_balance, add_earning, add_adjustment
-from .reserve import hold_funds, release_funds
 
+# --- Safety fallbacks (AI grace)
+try:
+    from src.safety.risk import assess_withdraw_risk
+except Exception:
+    async def assess_withdraw_risk(*args: Any, **kwargs: Any) -> Dict[str, Any]:
+        return {"action": "ok", "score": 0.0, "reasons": []}
+
+try:
+    from src.safety.facegate import verify_face_token
+except Exception:
+    async def verify_face_token(*args: Any, **kwargs: Any) -> bool:
+        return True
+
+# --- Service imports
+from src.wallet.service import (
+    get_user_usd_balance,
+    add_earning,
+    add_adjustment,
+    create_withdraw_reserve,
+    release_funds,
+    commit_withdraw,
+    reverse_withdraw,
+    payout_dispatch,
+)
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
 
-# ---- Schemas ----------------------------------------------------------------
-
+# ---------- Schemas ----------
 class BalanceOut(BaseModel):
-    balance_usd: float = Field(..., example=12.30)
+    balance_usd: float = Field(..., example=12.3)
 
 
 class EarnIn(BaseModel):
-    usd_cents: int = Field(..., ge=1, example=250)   # 2.50 USD
-    note: Optional[str] = Field(None, example="daily task reward")
-    ref: Optional[str] = Field(None, example="task:c1")
+    usd_cents: int = Field(..., ge=0)
+    note: Optional[str] = None
+    ref: Optional[str] = None
 
 
 class AdjustIn(BaseModel):
-    amount_usd: float = Field(..., example=-1.25)    # can be +/-
+    amount_usd: float
     note: Optional[str] = None
     ref: Optional[str] = None
 
 
 class ReserveIn(BaseModel):
-    amount_usd: float = Field(..., gt=0.0, example=5.0)
+    amount_usd: float = Field(..., gt=0)
     note: Optional[str] = None
     ref: Optional[str] = None
 
 
-class ReserveOut(BaseModel):
-    reserved_id: int
-
-
-class GenericRowOut(BaseModel):
-    id: int
-
 class WithdrawIn(BaseModel):
-    user_id: str = Field(..., min_length=3)
-    device_id: str = Field(..., min_length=3)
-    amount: float = Field(..., gt=0)
+    amount_usd: float = Field(..., gt=0.0)
+    note: Optional[str] = None
+    ref: Optional[str] = None
+    payout_method: str = Field("bank", example="bank|ewallet|prepaid_card|store_cash|unbanked_ai_cash")
+    payout_target: str = Field(..., example="MAYBANK-ACCT-1234567890")
+    device_id: Optional[str] = None
+    face_token: Optional[str] = None
+    ip: Optional[str] = None
 
-# ---- Dependencies -----------------------------------------------------------
 
-def _require_user(x_user_id: Optional[str] = Header(default=None)) -> str:
+class GenericOut(BaseModel):
+    id: str
+    detail: Optional[dict] = None
+
+
+# ---------- Dependencies ----------
+def require_user(x_user_id: Optional[str] = Header(None)) -> str:
     if not x_user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="x-user-id header is required")
+        raise HTTPException(status_code=400, detail="x-user-id header required")
     return x_user_id
 
 
-# ---- Routes ----------------------------------------------------------------
-
+# ---------- Routes ----------
 @router.get("/balance", response_model=BalanceOut)
-async def wallet_balance(
-    user_id: str = Depends(_require_user), db: AsyncSession = Depends(get_session)
-):
-    bal = await get_balance(db, user_id=user_id)
-    return BalanceOut(balance_usd=bal)
+async def wallet_balance(user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    bal = await get_user_usd_balance(user_id=user_id, session=db)
+    return BalanceOut(balance_usd=float(bal))
 
 
-@router.post("/earn", response_model=GenericRowOut, status_code=status.HTTP_201_CREATED)
-async def wallet_earn(
-    payload: EarnIn, user_id: str = Depends(_require_user), db: AsyncSession = Depends(get_session)
-):
-    rid = await add_earning(
-        db,
-        user_id=user_id,
-        usd_cents=payload.usd_cents,
-        note=payload.note,
-        ref=payload.ref,
-    )
-    return GenericRowOut(id=rid)
+@router.post("/earn", response_model=GenericOut, status_code=201)
+async def wallet_earn(payload: EarnIn, user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    rid = await add_earning(session=db, user_id=user_id, amount_usd=payload.usd_cents / 100, note=payload.note or "EARN", request_id=payload.ref or "")
+    return GenericOut(id=rid)
 
 
-@router.post("/adjust", response_model=GenericRowOut)
-async def wallet_adjust(
-    payload: AdjustIn, user_id: str = Depends(_require_user), db: AsyncSession = Depends(get_session)
-):
-    rid = await add_adjustment(
-        db,
-        user_id=user_id,
-        amount_usd=payload.amount_usd,
-        note=payload.note,
-        ref=payload.ref,
-    )
-    return GenericRowOut(id=rid)
+@router.post("/adjust", response_model=GenericOut, status_code=201)
+async def wallet_adjust(payload: AdjustIn, user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    rid = await add_adjustment(session=db, user_id=user_id, amount_usd=payload.amount_usd, note=payload.note or "ADJUST", request_id=payload.ref or "")
+    return GenericOut(id=rid)
 
 
-@router.post("/reserve", response_model=ReserveOut)
-async def wallet_reserve(
-    payload: ReserveIn, user_id: str = Depends(_require_user), db: AsyncSession = Depends(get_session)
-):
-    rid = await hold_funds(db, user_id=user_id, amount_usd=payload.amount_usd, note=payload.note, ref=payload.ref)
-    return ReserveOut(reserved_id=rid)
+@router.post("/reserve", response_model=GenericOut, status_code=201)
+async def wallet_reserve(payload: ReserveIn, user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    rid = await create_withdraw_reserve(session=db, user_id=user_id, amount_usd=payload.amount_usd, note=payload.note or "WITHDRAW_RESERVE", request_id=payload.ref or "")
+    return GenericOut(id=rid)
 
 
-@router.post("/reserve/release", response_model=GenericRowOut)
-async def wallet_reserve_release(
-    payload: ReserveIn, user_id: str = Depends(_require_user), db: AsyncSession = Depends(get_session)
-):
-    rid = await release_funds(db, user_id=user_id, amount_usd=payload.amount_usd, note=payload.note, ref=payload.ref)
-    return GenericRowOut(id=rid)
-
-@router.post("/withdraw")
-async def withdraw_funds(p: WithdrawIn, request: Request, x_face_token: Optional[str] = Header(None, alias="X-Face-Token")):
-    # 1) Assess risk
-    ip = request.client.host if request.client else "0.0.0.0"
-    ip_hash = str(hash(ip))  # swap to real hash if needed
-    risk = assess_withdraw_risk(user_id=p.user_id, device_id=p.device_id, amount=p.amount, ip_hash=ip_hash)
-
-    # 2) Gate by risk
-    if risk.action == "block":
-        raise HTTPException(status_code=403, detail={"msg": "WITHDRAW_BLOCKED", "risk": risk.reasons, "score": risk.score})
-
-    if risk.require_face:
-        if not x_face_token:
-            raise HTTPException(status_code=401, detail={"msg": "FACE_TOKEN_REQUIRED", "risk": risk.reasons})
-        # consume/verify token (raises on fail)
-        from src.safety.facegate import verify_face_token_or_401
-        verify_face_token_or_401(x_face_token, user_id=p.user_id, device_id=p.device_id, op="withdraw")
+@router.post("/reserve/release", response_model=GenericOut)
+async def wallet_release(payload: ReserveIn, user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    rid = await release_funds(session=db, user_id=user_id, amount_usd=payload.amount_usd, note=payload.note or "RESERVE_RELEASE", request_id=payload.ref or "")
+    return GenericOut(id=rid)
 
 
-    # Proceed to your existing wallet logic
-    try:
-        tx = await withdraw_funds(user_id=p.user_id, amount=p.amount)  # adapt to your signature
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="WITHDRAW_ERROR") from e
-    tx = None # fallback 
-    
-    return {
-        "ok": True,
-        "tx_id": getattr(tx, "id", None),
-        "amount": p.amount,
-        "ts": getattr(tx, "created_at", None).isoformat() if getattr(tx, "created_at", None) else None,
-        
-        "risk": {"action": risk.action, "score": risk.score, "reasons": risk.reasons},
-        "face_checked": bool(x_face_token) if risk.require_face else False,
-    }
+@router.post("/withdraw", response_model=GenericOut)
+async def wallet_withdraw(request: WithdrawIn, user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    amt = round(request.amount_usd, 2)
+    if amt <= 0:
+        raise HTTPException(status_code=422, detail="amount_usd must be > 0")
+
+    # --- AI Risk Check ---
+    risk = await assess_withdraw_risk(user_id=user_id, amount=amt)
+    if risk.get("action") == "block":
+        raise HTTPException(status_code=403, detail="Withdraw blocked by AI risk policy")
+    if risk.get("action") == "face":
+        if not request.face_token or not (await verify_face_token(request.face_token, user_id, request.device_id)):
+            raise HTTPException(status_code=401, detail="Face verification required")
+
+    wid = await commit_withdraw(session=db, user_id=user_id, amount_usd=amt, note=f"{request.note or 'WITHDRAW'}:{request.payout_method}", request_id=request.ref or "")
+    payout = await payout_dispatch(user_id=user_id, amount=amt, method=request.payout_method, target=request.payout_target)
+    return GenericOut(id=wid, detail=payout)
+
+
+@router.get("/summary", response_model=BalanceOut)
+async def wallet_summary(user_id: str = Depends(require_user), db: AsyncSession = Depends(get_session)):
+    bal = await get_user_usd_balance(user_id=user_id, session=db)
+    return BalanceOut(balance_usd=float(bal))

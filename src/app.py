@@ -1,4 +1,4 @@
-﻿# src/app.py
+# src/app.py
 from fastapi import FastAPI
   # absolute import
 from src.admin.router import router as admin_router

@@ -1,0 +1,19 @@
+groups:
+- name: api.rules
+  rules:
+  - alert: API_Down
+    expr: up{job="dignilife_api"} == 0
+    for: 1m
+    labels: { severity: critical }
+    annotations:
+      summary: "API down"
+      description: "FastAPI /health failing for 1 minute"
+
+- name: host.rules
+  rules:
+  - alert: HighRequestLatency
+    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+    for: 5m
+    labels: { severity: warning }
+    annotations:
+      summary: "p95 latency > 1s"

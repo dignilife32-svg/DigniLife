@@ -1,20 +1,43 @@
 # src/auth/service.py
 from __future__ import annotations
-from typing import Optional, Dict, Any
+
+from fastapi import Header, HTTPException, status
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime, timedelta
 import uuid, json
 
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from email_validator import validate_email, EmailNotValidError
 
-from src.ai.face import face_embed, face_match, liveness_score
-from src.db.models import User, FaceProfile, KycVerification, AuthSession
+from src.ai.face import face_embed, face_match, face_liveness as liveness_score
+from src.db.models import User, FaceProfile #
+if TYPE_CHECKING:
+  ## typing 용 forward refs (runtime import မဖြစ်အောင်)
+
+ from src.db.models import KycVerification, AuthSession
+
+
 
 SIM_THRESHOLD = 0.85
 SESSION_HOURS = 72
 
 def _now() -> datetime:
     return datetime.utcnow()
+
+# ✅ tests/client မှာ headers={"x-user-id": "demo"} ပို့ရင် အလုပ်လုပ်တယ်
+async def require_user(x_user_id: Optional[str] = Header(default=None, alias="x-user-id")) -> Dict[str, Any]:
+    if not x_user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
+    return {"id": x_user_id}
+    
+def validate_user_email(email: str) -> str:
+    """Ensure the email is syntactically valid before creating a user."""
+    try:
+        valid = validate_email(email)
+        return valid.email
+    except EmailNotValidError as e:
+        raise ValueError(f"Invalid email: {e}")
 
 def _new_token() -> str:
     return str(uuid.uuid4())
@@ -157,6 +180,8 @@ def kyc_submit(db: Session, user_id: str, id_images_b64=None, id_meta: Optional[
         user.identity_tier = "FACE_PLUS_ID"
         db.commit()
         return {"ok": True, "tier": "FACE_PLUS_ID", "state": "APPROVED_AI"}
+    
+
 
     # no id provided → keep FACE_ONLY
     db.commit()

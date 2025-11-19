@@ -5,7 +5,7 @@ from pathlib import Path
 from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from src.db.session import engine
+from src.db.session import get_session_ctx
 
 RUNTIME_DIR = Path("runtime")
 RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
@@ -13,8 +13,8 @@ logger.add(RUNTIME_DIR / "logs" / "diagnostics.log", rotation="1 week")
 
 async def ping_db(timeout: float = 2.0) -> dict:
     try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
+        async with get_session_ctx() as db:
+            await db.execute(text("SELECT 1"))
         return {"ok": True, "latency_ms": 1}
     except SQLAlchemyError as e:
         return {"ok": False, "error": str(e)}

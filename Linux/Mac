@@ -1,0 +1,29 @@
+SHELL := /bin/bash
+
+.PHONY: up down rebuild ps logs doctor wipe
+
+up:
+	docker compose up -d --build
+	@$(MAKE) doctor
+
+down:
+	docker compose down
+
+rebuild:
+	docker compose build --no-cache
+
+ps:
+	docker compose ps
+
+logs:
+	docker compose logs -f api
+
+doctor:
+	@echo "== Compose config check =="
+	docker compose config >/dev/null || (echo "compose invalid" && exit 1)
+	@echo "== API health =="
+	@for i in {1..30}; do code=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health || true); \
+	  echo -n "$$code "; [ "$$code" = "200" ] && echo "\nOK" && exit 0; sleep 1; done; echo "\nAPI not healthy" && exit 1
+
+wipe:
+	docker compose down -v
