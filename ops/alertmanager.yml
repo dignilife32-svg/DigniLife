@@ -1,3 +1,4 @@
+#ops/alertmanager.yml
 global:
   resolve_timeout: 5m
 

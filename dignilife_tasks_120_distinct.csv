@@ -1,3 +1,4 @@
+#dignilife_tasks_120_distinct.csv
 code,name,category,display_value_usd,expected_time_sec,ai_required,prereq_gate,languages,description,user_prompt,quality_rubric,bonus_eligible,review_threshold,is_active,notes
 text_note,Write a short note,text,2.0,20,True,False,auto,Type in any language; AI auto-detects relevance.,Write in your own words; keep it short and clear.,A=high;B=ok;C=poor,"streak,speed,quality,diversity",0.6,True,
 text_translate_simple,Translate a simple sentence,text,2.0,20,True,False,auto,Type in any language; AI auto-detects relevance.,Write in your own words; keep it short and clear.,A=high;B=ok;C=poor,"streak,speed,quality,diversity",0.6,True,

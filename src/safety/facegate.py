@@ -199,3 +199,20 @@ async def post_verify_face(p: VerifyFaceIn, req: Request) -> VerifyFaceOut:
 def verify_face_token_or_401(token: str, *, user_id: str, device_id: str, op: str) -> None:
     """Reusable verifier for other routers/services."""
     verify_token(token, expect_user=user_id, expect_device=device_id, expect_op=op)
+
+# ✅ Async wrapper for wallet/router etc.
+async def verify_face_token(
+    token: str,
+    user_id: str,
+    device_id: Optional[str],
+    op: str = "withdraw",
+) -> bool:
+    """
+    Async helper used by other modules (e.g. wallet/router).
+    Raises HTTPException on failure, returns True on success.
+    """
+    if device_id is None:
+        # you can tighten this later – for now allow None (dev/test)
+        device_id = ""
+    verify_face_token_or_401(token, user_id=user_id, device_id=device_id, op=op)
+    return True

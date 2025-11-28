@@ -1,3 +1,4 @@
+#check_income.py
 import asyncio
 from src.db.session import get_session_ctx as Ctx, q
 

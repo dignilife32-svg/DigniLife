@@ -1,3 +1,4 @@
+#dashboards/dash.yaml
 apiVersion: 1
 providers:
 - name: 'dignilife'
@@ -6,3 +7,4 @@ providers:
   type: file
   options:
     path: /var/lib/grafana/dashboards
+

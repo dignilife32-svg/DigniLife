@@ -23,7 +23,7 @@ async def _today_bonus_total(session: AsyncSession, user_id: str) -> Decimal:
     q = (
         select(func.coalesce(func.sum(WalletLedger.amount_usd), 0))
         .where(WalletLedger.user_id == user_id)
-        .where(WalletLedger.type == LedgerType.BONUS)
+        .where(WalletLedger.type_ == LedgerType.BONUS)
         .where(func.date(WalletLedger.created_at) == datetime.now(timezone.utc).date())
     )
     value = (await session.execute(q)).scalar_one()

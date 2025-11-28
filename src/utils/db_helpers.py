@@ -39,11 +39,11 @@ async def commit_ledger_entry(
     """
     entry = WalletLedger(
         user_id=user_id,
-        type=type_,
+        type=type_.value if hasattr(type_, "value") else str(type_),
         amount_usd=amount_usd,
-        ref_task_code=ref_task_code[:64],
-        meta=meta,
-        created_at=datetime.now(timezone.utc),
+        ref=ref_task_code[:64] or None,
+        note=meta,
+        confirmed=True
     )
     db.add(entry)
     await db.commit()

@@ -1,4 +1,5 @@
-﻿# Python bytecode cache
+﻿#.gitignore
+# Python bytecode cache
 __pycache__/
 *.py[cod]
 

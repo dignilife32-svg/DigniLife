@@ -1,3 +1,4 @@
+#pyproject.toml
 [tool.pylight]
 include = ["src", "tests"]
 exclude = ["legacy", "migrations", "**/__pycache__"]

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from src.db.session import get_session
 from src.db.models import AuthSession, User
+from src.auth.security import get_current_user
 
 def get_current_user(x_auth_token: str = Header(...), db: Session = Depends(get_session)):
     sess = db.query(AuthSession).filter(AuthSession.id == x_auth_token).one_or_none()
@@ -14,3 +15,5 @@ def get_current_user(x_auth_token: str = Header(...), db: Session = Depends(get_
     if not user:
         raise HTTPException(status_code=401, detail="user_not_found")
     return user
+
+__all__ = ["get_current_user"]

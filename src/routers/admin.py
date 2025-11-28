@@ -4,7 +4,11 @@ from typing import Optional
 from src.admin.queue import list_withdrawals, approve, reject
 from src.security import require_admin  # your existing guard
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin-core"],
+    dependencies=[Depends(require_admin)]
+)
 
 @router.get("/withdraw/queue")
 def admin_queue_list(

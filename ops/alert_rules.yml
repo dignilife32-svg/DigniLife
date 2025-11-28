@@ -1,3 +1,4 @@
+#ops/alert_rules.yml
 groups:
 - name: api.rules
   rules:

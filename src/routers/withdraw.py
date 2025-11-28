@@ -1,3 +1,4 @@
+#src/routers/withdraw.py
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.session import get_session
 
 # Wallet models (enum + ledger)
-from src.wallet.models import WalletLedger, LedgerType
+from src.db.models import WalletLedger, LedgerType
 
 # Face/KYC gate – this is what your facegate.py actually exports
 from src.safety.facegate import verify_face_token_or_401

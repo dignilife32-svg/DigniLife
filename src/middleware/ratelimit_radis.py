@@ -1,3 +1,4 @@
+#src/middleware/ratelimit_radis.py
 """
 ratelimit_redis.py
 
@@ -193,7 +194,7 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
                 "detail": "rate limit exceeded",
                 "retry_after_seconds": retry_int,
             }
-            ratelimit.labels(route=request.url.path).inc()
+            
             headers = {"Retry-After": str(retry_int)}
 
             return JSONResponse(body, status_code=429, headers=headers)

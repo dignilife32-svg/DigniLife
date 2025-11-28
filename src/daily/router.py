@@ -6,10 +6,12 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 from typing import Optional
+from decimal import Decimal
+from src.bonus.service import grant_daily_submit_bonus
 
-from src.db.session import get_session, get_session
+from src.db.session import get_session
 from src.db.models import DailyTask
-from src.wallet.logic import add_earning
+from src.wallet.service import add_earning
 from .schemas import TaskOut, SubmitIn
 from .service import list_tasks
 
@@ -46,6 +48,20 @@ async def submit_task(
         note=f"{payload.note}:{payload.task_code}",
         ref=f"daily:{payload.task_code}",
     )
+    # 2) bonus engine (non-blocking)
+    try:
+        await grant_daily_submit_bonus(
+            db,
+            user_id=user_id,
+            base_usd=Decimal(payload.usd_cents) / 100,
+            user_flags={"is_trust_ok": True, "is_kyc_ok": True},
+            source_id=f"daily:{payload.task_code}",
+        )
+        await db.commit()
+    except Exception:
+        # bonus မအောင်မြင်လည်း main earn ကို မပျက်အောင် ခွင့်လွှတ်ထားမယ်
+        await db.rollback()
+
     return {"ok": True}
 
 

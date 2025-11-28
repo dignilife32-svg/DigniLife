@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#src/utils/errors.py
 from __future__ import annotations
 from fastapi import HTTPException
 

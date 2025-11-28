@@ -35,8 +35,8 @@ curl -s http://127.0.0.1:18000/balance | jq
 # 3) start loop
 curl -s -X POST http://127.0.0.1:18000/start -H 'content-type: application/json' -d '{"interval_sec":2}' | jq
 
-# 4) status (should show running + lasts grow)
-curl -s http://127.0.0.1:18000/status | jq '.ok,.running,.interval_sec,.lasts|length'
+# 3) start loop
+curl -s -X POST http://127.0.0.1:18000/start -H 'content-type: application/json' -d '{"interval_sec":2}' | jq
 
 # 5) withdraw → auto_approve and pool decreased
 curl -s -X POST http://127.0.0.1:18000/withdraw -H 'content-type: application/json' \
@@ -92,3 +92,4 @@ POST /payout/request
 
 $env:PAYOUT_GATEWAY_ENABLED = "1"   # server gateway run
 uvicorn worker:app --host 127.0.0.1 --port 18000 --reload
+

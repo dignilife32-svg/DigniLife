@@ -1,12 +1,15 @@
 # src/routers/admin_inject.py
 from __future__ import annotations
 from typing import Any, Dict, List
-from fastapi import APIRouter, Header, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Header, HTTPException, status, BackgroundTasks, Depends
 from pydantic import BaseModel, Field, field_validator
 
 from src.admin.injector import ADMIN_KEY, TaskSpec, enqueue_task, bulk_enqueue, _enforce_rl
+from src.routers.admin_guard import require_admin
 
-router = APIRouter(prefix="/admin/inject", tags=["admin"])
+
+router = APIRouter(prefix="/admin/inject", tags=["admin"],
+dependencies=[Depends(require_admin)])
 
 def _auth(k: str|None):
     if not k or k != ADMIN_KEY:
