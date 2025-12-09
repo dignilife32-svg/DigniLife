@@ -1,88 +1,51 @@
-#docker-compose.yml
+version: '3.8'
+
 services:
+  # PostgreSQL Database
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: dignilife-db
     environment:
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD: apppass
+      POSTGRES_USER: dignilife
+      POSTGRES_PASSWORD: secretpassword
       POSTGRES_DB: dignilife
-    ports: ["5432:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  redis:
-    image: redis:7
-    ports: ["6379:6379"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 2s
-      retries: 30
-
-  mailhog:
-    image: mailhog/mailhog:v1.0.1
-    ports: ["8025:8025"]
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8025/api/v2/healthz"]
+      test: ["CMD-SHELL", "pg_isready -U dignilife"]
       interval: 10s
-      timeout: 3s
-      retries: 12
+      timeout: 5s
+      retries: 5
 
+  # FastAPI Application
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    env_file:
-      - .env.docker
-    ports: ["8000:8000"]
+    build: .
+    container_name: dignilife-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dignilife:secretpassword@db:5432/dignilife
+      SECRET_KEY: your-secret-key-change-in-production
+      DEBUG: "false"
+      AUTO_CUT_ENABLED: "true"
+      AUTO_CUT_THRESHOLD_USD: "100.0"
+      WITHDRAW_FEE_PERCENT: "3.0"
+    ports:
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      mailhog:
-        condition: service_started
-    healthcheck:
-      # 8000!! (မဟုတ် 88000)
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 2s
-      retries: 10
-    command: >
-      bash -lc '
-        ./ops/wait-for tcp:db:5432 60 &&
-        ./ops/wait-for http://redis:6379 60 &&
-        python -m src.db.create_tables_once || true &&
-        uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
-      '
-
-  # --- Monitoring (profile: monitors) ---
-  redis-exporter:
-    image: bitnami/redis-exporter:latest
-    environment: { REDIS_ADDR: "redis://redis:6379" }
-    depends_on: [redis]
-    ports: ["9121:9121"]
-    profiles: ["monitors"]
-
-  prometheus:
-    image: prom/prometheus:latest
     volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    command: ["--config.file=/etc/prometheus/prometheus.yml"]
-    ports: ["9090:9090"]
-    depends_on: [api]
-    profiles: ["monitors"]
-
-  grafana:
-    image: grafana/grafana:latest
-    ports: ["3000:3000"]
-    depends_on: [prometheus]
-    profiles: ["monitors"]
+      - ./src:/app/src
+    command: >
+      sh -c "
+        echo '⏳ Waiting for database...' &&
+        sleep 5 &&
+        echo '📦 Running migrations...' &&
+        alembic upgrade head &&
+        echo '🚀 Starting API server...' &&
+        uvicorn src.main:app --host 0.0.0.0 --port 8000
+      "
 
 volumes:
-  pgdata:
-
+  postgres_data:

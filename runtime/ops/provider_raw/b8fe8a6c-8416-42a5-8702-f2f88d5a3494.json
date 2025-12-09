@@ -1,0 +1,13 @@
+{
+  "ts_utc": "2025-11-14T06:58:39+00:00",
+  "request": {
+    "withdrawal_id": "b8fe8a6c-8416-42a5-8702-f2f88d5a3494",
+    "amount_usd": 300.0,
+    "method": "tng",
+    "dest": "0179622131",
+    "note": "test auto payout tng",
+    "source": "worker_admin"
+  },
+  "status": "ok",
+  "provider_ref": "OK:tng:2131:b8fe8a6c"
+}

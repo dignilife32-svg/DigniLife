@@ -1,4 +1,6 @@
-# src/db/__init__.py
-from .session import Base, get_session,  create_tables_once
+"""Database package for DigniLife."""
 
-__all__ = ["Base", "get_session",  "create_tables_once"]
+from src.db.base import Base
+from src.db.session import AsyncSessionLocal, engine, get_db
+
+__all__ = ["Base", "AsyncSessionLocal", "engine", "get_db"]

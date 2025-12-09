@@ -1,0 +1,15 @@
+id,user_id,amount_usd,dest,method,status,created_at,updated_at,audit
+dd852a07-fd92-4007-8e16-fce1601230f7,admin,50.0,mywave,ewallet,approved_auto,1762756651,1762756651,auto_approved_by_rule
+87a2617b-a35d-4468-87ed-3a65f218691f,admin,50.0,mywave,ewallet,approved_auto,1762756961,1762756961,auto_approved_by_rule
+048b3a86-b419-4063-b06f-758318103648,admin,50.0,mywave,ewallet,approved_auto,1762757189,1762757189,auto_approved_by_rule
+54cff458-ed54-450b-9743-361ba3cedb8e,admin,50.0,mywave,ewallet,approved_auto,1762760388,1762760388,auto_approved_by_rule
+cd4e01b2-d852-4b6b-8696-e972e1442345,admin,50.0,mywave,ewallet,approved_auto,1762760478,1762760478,auto_approved_by_rule
+01e769e6-9037-4237-a2f5-fc11933b5796,admin,50.0,mywave,ewallet,approved_auto,1762760929,1762760929,auto_approved_by_rule
+bbcef823-a902-49bc-90fc-76bd2d1085df,admin,50.0,mywave,ewallet,approved_auto,1762761547,1762761547,auto_approved_by_rule
+1263b62e-56bf-40ab-9d17-14b70a848abe,admin,50.0,mywave,ewallet,approved_auto,1762761879,1762761879,auto_approved_by_rule
+cd3b9e7c-1f9f-419a-a7fb-8f4385f1da69,admin,50.0,mywave,ewallet,approved_auto,1762761915,1762761915,auto_approved_by_rule
+53c2dba7-9475-4d6b-808b-5d3038c3ec18,admin,50.0,mywave,ewallet,approved_auto,1762761945,1762761945,auto_approved_by_rule
+68b51ad8-1233-4205-be94-53e277b0c145,admin,50.0,mywave,ewallet,approved_auto,1762762193,1762762193,auto_approved_by_rule
+192a2257-b819-4a53-a1a4-e280b89b4b5f,admin,50.0,mywave,ewallet,approved_auto,1762762609,1762762609,auto_approved_by_rule
+b1263eb2-e26c-4bca-838d-e394d2bd87e2,admin,50.0,mywave,ewallet,approved_auto,1762763215,1762763215,auto_approved_by_rule
+9140a976-2b65-4f43-920c-98b031c11314,admin,50.0,mywave,ewallet,approved_auto,1762778989,1762778989,auto_approved_by_rule

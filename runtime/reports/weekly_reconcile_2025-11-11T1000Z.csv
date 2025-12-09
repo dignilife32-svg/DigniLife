@@ -1,0 +1,17 @@
+DigniLife Auto Reconcile Summary
+Generated (UTC),2025-11-11T10:00:14+00:00
+
+Withdrawals Summary
+Method,Count,Total USD
+bank,3,60.0
+ewallet,13,3483.2
+tng_prepaid,3,50.0
+
+Earnings Summary,Count,Total USD
+earnings,26489,26368.04
+
+Conversions Totals
+Total USD (source),110.0
+Total Converted (target sum),52904.98
+
+Current Pool USD,15943.76

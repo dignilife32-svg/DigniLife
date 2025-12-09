@@ -1,0 +1,18 @@
+{
+  "wid": "a0f9b5883ed2470ea56bbd52783d4990",
+  "ts_utc": "2025-11-11T15:45:36Z",
+  "base": "USD",
+  "amount_usd": 120.0,
+  "target_currency": "MMK",
+  "rate": 2100.0,
+  "converted_amount": 252000.0,
+  "dest": {
+    "country": "MM",
+    "type": "ewallet",
+    "label": "KBZPay",
+    "phone": "+9594*******",
+    "bank_acct_masked": null
+  },
+  "note": "admin payout to MM",
+  "reserve": false
+}

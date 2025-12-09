@@ -1,4 +1,9 @@
-#src/db/base.py
-from sqlalchemy.orm import declarative_base
+"""
+DigniLife Platform - Database Base Class
+"""
+from sqlalchemy.orm import DeclarativeBase
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for all database models"""
+    pass

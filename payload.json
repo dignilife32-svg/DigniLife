@@ -1,8 +1,0 @@
-{
-  "user_id": "admin",
-  "amount_usd": 50,
-  "method": "ewallet",
-  "dest": "mywave",
-  "face_scan_verified": true,
-  "idempotency_key": "demo-001"
-}

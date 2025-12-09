@@ -1,48 +1,149 @@
-﻿#.gitignore
-# Python bytecode cache
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Virtual environments
-.venv/
+# Virtual Environment
+venv/
 env/
 ENV/
-.venv.bak/
+env.bak/
+venv.bak/
+.venv/
 
-# VS Code settings
+# IDE
 .vscode/
-
-# dotenv files
-.env
-.env.*
-
-# OS / misc
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-Thumbs.db
-*.log
 
-# App database or test outputs (if used)
-*.sqlite3
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
 *.db
 *.sqlite
-.diginitestcache/
+*.sqlite3
 
-# Pytest cache
+# Alembic
+alembic/versions/__pycache__/
+
+# Testing
 .pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
+# Logs
+*.log
+logs/
+*.log.*
 
-data/** 
-runtime/** 
+# Uploads
+uploads/
+static/uploads/
 
+# Documentation
+docs/_build/
+site/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython
+cython_debug/
+
+# Node (if using frontend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Security
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+
+# Runtime
+runtime/*.json
+runtime/*.log
+!runtime/.gitkeep
+
+# Legacy
+data/**
 feedback_data.json
-
-etc/codegen/** 
-src/codegen/** 
-
-runtime/*.sqlite*
-
-worker.py
+etc/codegen/**
+src/codegen/**
